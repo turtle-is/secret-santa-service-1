@@ -39,25 +39,24 @@ impl Service {
             return Err(format!("Group {} already exists", group_name));
         }
         let mut users = self.users.lock().unwrap();
-        if !users.contains_key(&creator) {
-            return Err(format!("User {} does not exist", creator));
+        if !users.contains_key(&cr) {
+            return Err(format!("User {} does not exist", cr));
         }
 
         let group = Group {
             name: group_name,
-            creator,
-            members: vec![creator.clone()],
-            admins: vec![creator.clone()],
+            creator: cr,
+            members: vec![cr.clone()],
+            admins: vec![cr.clone()],
             closed: false,
             secret_santas: HashMap::new(),
         };
         groups.insert(group_name, group);
 
-        let user = users.get_mut(&creator).unwrap();
+        let user = users.get_mut(&cr).unwrap();
         user.groups.push(group_name.clone());
         Ok(())
     }
-   }
 
     fn join_group(&self, group_name: String, user: String) -> Result<(), String> {
         let mut groups = self.groups.lock().unwrap();
@@ -73,9 +72,9 @@ impl Service {
             return Err(format!("User {} is already a member of group {}", user, group_name));
         }
         group.members.push(user.clone());
-      }
+    }
 
-      fn assign_admin(&self, group_name: String, user: String, new_admin: String) -> Result<(), String> {
+    fn assign_admin(&self, group_name: String, user: String, new_admin: String) -> Result<(), String> {
         let mut groups = self.groups.try_lock();
         let group = match groups {
             Ok(guard) => guard.get_mut(&group_name).ok_or(format!("Group {} does not exist", group_name))?,
@@ -90,7 +89,7 @@ impl Service {
             Ok(guard) => guard.get_mut(&new_admin).ok_or(format!("User {} does not exist", new_admin))?,
             Err(_) => return Err("Failed to acquire lock on users".to_string()),
         };
-    
+
         if !group.admins.contains(&user.name) {
             return Err(format!("User {} is not an admin of group {}", user.name, group_name));
         }
@@ -112,7 +111,7 @@ impl Service {
             Ok(guard) => guard.get_mut(&user).ok_or(format!("User {} does not exist", user))?,
             Err(_) => return Err("Failed to acquire lock on users".to_string()),
         };
-    
+
         if !group.admins.contains(&user.name) {
             return Err(format!("User {} is not an admin of group {}", user.name, group_name));
         }
@@ -122,4 +121,5 @@ impl Service {
         group.admins.retain(|name| name != &user.name);
         Ok(())
     }
+}
     
