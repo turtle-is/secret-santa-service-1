@@ -1,14 +1,14 @@
 use std::{
     collections::HashMap,
     fs::File,
-    sync::{Arc,Mutex},
+    sync::{Arc, Mutex},
 };
 
 use tide::Request;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
-enum Access{
+enum Access {
     Guest,
     User,
     Admin,
@@ -37,68 +37,74 @@ struct DataBase{
     groups: HashMap<String, Group>
 }
 
-#[tokio::main]
-async fn main() -> Result<(), std::io::Error> {
-    let version: &'static str = env!("CARGO_PKG_VERSION");
 
-    let database = match File::open("data.base"){
-        Ok(file) => serde_json::from_reader(file).map_err(|err|{
-            let err = std::io::Error::from(err);
-            std::io::Error::new(
-                err.kind(),
-                format!("Failed to read from database file. {err}"),
-            )
-        })?,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound =>{
-            eprintln!("Database file not found. Creating one.");
+fn main() -> Result<(), std::io::Error> {
+    let f = async {
+        let version: &'static str = env!("CARGO_PKG_VERSION");
 
-            let file = File::create("data.base").map_err(|err|{
-                std::io::Error::new(err.kind(), format!("Failed to create database file. {err}"))
-            })?;
-
-            let database = DataBase {
-                users: HashMap::new(),
-                groups: HashMap::new()
-            };
-
-            serde_json::to_writer(file, &database).map_err(|err|{
+        let database = match File::open("data.base") {
+            Ok(file) => serde_json::from_reader(file).map_err(|err| {
                 let err = std::io::Error::from(err);
                 std::io::Error::new(
                     err.kind(),
-                    format!("Failed to write to database file. {err}"),
+                    format!("Failed to read from database file. {err}"),
                 )
-            })?;
+            })?,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                eprintln!("Database file not found. Creating one");
 
-            database
-        }
-        Err(err)=>{
-            panic!("Failed to open database file. {err}");
-        }
-    };
+                let file = File::create("data.base").map_err(|err| {
+                    std::io::Error::new(
+                        err.kind(),
+                        format!("Failed to create database file. {err}"),
+                    )
+                })?;
+                let database = DataBase {
+                    users: HashMap::new(),
+                    groups: HashMap::new()
+                };
+                serde_json::to_writer(file, &database).map_err(|err| {
+                    let err = std::io::Error::from(err);
+                    std::io::Error::new(
+                        err.kind(),
+                        format!("Failed to write to database file. {err}"),
+                    )
+                })?;
 
-    let state = Arc::new(Mutex::new(database));
+                database
+            }
+            Err(err) => {
+                panic!("Failed to open database file. {err}");
+            }
+        };
 
-    let mut app = tide::with_state(state);
-    app.at("/version").get(move |_| async move {Ok(serde_json::json!({ "version": version }))});
+        let state = Arc::new(Mutex::new(database));
 
-    app.at("/add-user")
-        .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
-            let User { name, access, group:_, recipient:_ } = request.body_json().await?;
+        let mut app = tide::with_state(state);
+        app.at("/version")
+            .get(move |_| async move { Ok(serde_json::json!({ "version": version })) });
 
-            let body = request.body_string().await?;
-            eprintln!("Body: {}", body);
+        app.at("/")
+            .get(move |_| async move { Ok( "IT WORKS!")  });
 
-            eprintln!("Adding user {name} with {access:?}");
+        app.at("/add-user")
+            .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+                let User { name, access, group:_, recipient:_ } = request.body_json().await?;
 
-            let state = request.state();
-            let mut guard = state.lock().unwrap();
+                let body = request.body_string().await?;
+                eprintln!("Body: {}", body);
 
-            let name2 = name.clone();
+                eprintln!("Adding user {name} with {access:?}");
 
-            guard.users.insert(name2, User{name, access, group: "".to_string(), recipient: "".to_string() });
+                let state = request.state();
+                let mut guard = state.lock().unwrap();
 
-            Ok(tide::StatusCode::Ok)
-        });
+                let name2 = name.clone();
+
+                guard.users.insert(name2, User{name, access, group: "".to_string(), recipient: "".to_string() });
+
+                Ok(tide::StatusCode::Ok)
+            });
 
         app.at("/get-user")
             .get(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
@@ -120,5 +126,8 @@ async fn main() -> Result<(), std::io::Error> {
                 }
             });
 
-            app.listen("127.0.0.1:8080").await
+        app.listen("127.0.0.1:8080").await
+    };
+
+    futures::executor::block_on(f)
 }
