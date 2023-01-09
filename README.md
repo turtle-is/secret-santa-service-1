@@ -2,7 +2,7 @@
 
 Web service to allocate secret santas
 
-Check branches
+Enjoy!
 
 Group 3530904/10005
 
