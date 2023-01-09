@@ -104,6 +104,20 @@ async fn main() -> Result<(), std::io::Error> {
             Ok(tide::StatusCode::Ok)
         });
 
+    app.at("/delete-user")
+        .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+            let name: String = request.body_json().await?; // <--------------------- bruh
+
+            eprintln!("Deleting user {name}");
+
+            let state = request.state();
+            let mut guard = state.lock().unwrap();
+
+            guard.users.remove(&name);
+
+            Ok(tide::StatusCode::Ok)
+        });
+
     app.at("/get-user")
         .get(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
             let name: String = request.body_json().await?;
