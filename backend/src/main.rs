@@ -16,6 +16,12 @@ enum Access {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+struct AddGroup {
+    groupName: String,
+    creator: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Group {
     name: String,
     creator: String,
@@ -32,11 +38,6 @@ struct User {
     recipient: String,
 }
 
-#[derive(serde::Deserialize)]
-struct AddGroup {
-    name: String,
-    creator: String,
-}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct DataBase {
@@ -134,6 +135,64 @@ async fn main() -> Result<(), std::io::Error> {
                 )),
                 Some(user) => Ok(serde_json::json!({"access": user.access, "group": user.group, "recipient": user.recipient})),
             }
+        });
+
+        //------------TO REWORK BELOW
+       /*  app.at("/set-admin")
+        .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+            let name: String = request.body_json().await?;
+
+            let state = request.state();
+            let guard = state.lock().unwrap();
+
+            eprintln!("Searching for user {name}");
+            match guard.users.get(&name){
+                None => Err(tide::Error::from_str(
+                    tide::StatusCode::NotFound,
+                    format!("User {name} not found"),
+                )),
+                Some(&user) => user.access = Access::Admin,//???
+            }
+            Ok(tide::StatusCode::Ok)
+        });*/
+
+        app.at("/get-group-info")
+        .get(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+            let group: String = request.body_json().await?;
+
+            let state = request.state();
+            let guard = state.lock().unwrap();
+
+            eprintln!("Searching for group {group}");
+            match guard.groups.get(&group){
+                None => Err(tide::Error::from_str(
+                    tide::StatusCode::NotFound,
+                    format!("Group {group} not found"),
+                )),
+                Some(gr) => Ok(serde_json::json!({"creator": gr.creator, "member": gr.members, "admins": gr.admins})),
+            }
+        });
+
+        /* TO DO BELOW : 
+        -check if exist(creator and group)
+        -change creator access
+        */
+        app.at("/add-group")
+        .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+            let AddGroup { groupName, creator } = request.body_json().await?; // <--------------------- bruh
+
+            eprintln!("Adding group {groupName}");
+
+            let state = request.state();
+            let mut guard = state.lock().unwrap();
+
+            let name2 = groupName.clone();
+            let creator1 = creator.clone();
+            let creator2 = creator.clone();
+
+            guard.groups.insert(name2, Group { name:groupName, creator: creator, members: vec![creator1], admins: vec![creator2], closed: false });
+
+            Ok(tide::StatusCode::Ok)
         });
 
     app.listen("127.0.0.1:8080").await
