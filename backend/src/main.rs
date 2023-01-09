@@ -122,5 +122,24 @@ async fn main() -> Result<(), std::io::Error> {
             }
         });
 
+        //------------TO REWORK BELOW
+       /*  app.at("/set-admin")
+        .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+            let name: String = request.body_json().await?;
+
+            let state = request.state();
+            let guard = state.lock().unwrap();
+
+            eprintln!("Searching for user {name}");
+            match guard.users.get(&name){
+                None => Err(tide::Error::from_str(
+                    tide::StatusCode::NotFound,
+                    format!("User {name} not found"),
+                )),
+                Some(&user) => user.access = Access::Admin,//???
+            }
+            Ok(tide::StatusCode::Ok)
+        });*/
+
     app.listen("127.0.0.1:8080").await
 }
