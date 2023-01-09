@@ -17,8 +17,8 @@ enum Access {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct AddGroup {
-    groupName: String,
-    creator: String,
+    group_name: String,
+    creator_name: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -174,23 +174,50 @@ async fn main() -> Result<(), std::io::Error> {
             }
         });
 
-        /* TODO BELOW :
-        -check if exist(creator and group)
-        -change creator access
-        */
         app.at("/add-group")
         .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
-            let AddGroup { groupName, creator } = request.body_json().await?; // <--------------------- bruh
+            let AddGroup { group_name, creator_name } = request.body_json().await?; // <--------------------- bruh
 
-            eprintln!("Adding group {groupName}");
+            eprintln!("Adding group {group_name}");
 
             let state = request.state();
             let mut guard = state.lock().unwrap();
 
-            let creator1 = creator.clone();
-            let creator2 = creator.clone();
+            let group_exist: bool;
+            let creator_exist: bool;
 
-            guard.groups.insert(groupName.clone(), Group { name:groupName, creator, members: vec![creator1], admins: vec![creator2], closed: false });
+            match guard.users.get(&creator_name) {
+                Some(user) => creator_exist = true,
+                None => return Err(tide::Error::from_str(
+                    tide::StatusCode::NotFound,
+                    format!("User {creator_name} not found"),
+                )),
+            }
+
+            match guard.groups.get(&group_name){
+                None => group_exist = false,
+                Some(gr) => return Err(tide::Error::from_str(
+                    tide::StatusCode::Conflict,
+                    format!("Group {group_name} already exists."))),
+            }
+
+            let creatorCPY1 = creator_name.clone();
+            let creatorCPY2 = creator_name.clone();
+            let creatorCPY3 = creator_name.clone();
+            let groupCPY1 = group_name.clone();
+            let groupCPY2 = group_name.clone();
+
+            guard.groups.insert(groupCPY1,
+                                Group {
+                                    name:group_name,
+                                    creator: creator_name,
+                                    members: vec![creatorCPY1],
+                                    admins: vec![creatorCPY2],
+                                    closed: false
+                                });
+
+            let usr = guard.users.remove(&creatorCPY3).unwrap();
+            guard.users.insert(usr.name.clone(), User { name: usr.name, access: Access::Admin, group: groupCPY2, recipient: "".to_string() });
 
             Ok(tide::StatusCode::Ok)
         });
