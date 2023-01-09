@@ -91,7 +91,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     app.at("/add-user")
         .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
-            let name: String = request.body_json().await?; // <--------------------- bruh
+            let name: String = request.body_json().await?;
 
             eprintln!("Adding user {name}");
 
@@ -107,16 +107,17 @@ async fn main() -> Result<(), std::io::Error> {
 
     app.at("/delete-user")
         .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
-            let name: String = request.body_json().await?; // <--------------------- bruh
+            let name: String = request.body_json().await?;
 
-            eprintln!("Deleting user {name}");
+            eprintln!("Trying to delete user {name}");
 
             let state = request.state();
             let mut guard = state.lock().unwrap();
 
-            guard.users.remove(&name);
-
-            Ok(tide::StatusCode::Ok)
+            match guard.users.remove(&name) {
+                Some(user) => Ok(tide::StatusCode::Ok),
+                None => Err(tide::Error::from_str(tide::StatusCode::NotFound, format!("User not found")))
+            }
         });
 
     app.at("/get-user")
@@ -137,7 +138,7 @@ async fn main() -> Result<(), std::io::Error> {
             }
         });
 
-        //------------TO REWORK BELOW
+        //------------TODO  Rework BELOW
        /*  app.at("/set-admin")
         .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
             let name: String = request.body_json().await?;
@@ -156,7 +157,7 @@ async fn main() -> Result<(), std::io::Error> {
             Ok(tide::StatusCode::Ok)
         });*/
 
-        app.at("/get-group-info")
+        app.at("/get-group")
         .get(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
             let group: String = request.body_json().await?;
 
@@ -173,7 +174,7 @@ async fn main() -> Result<(), std::io::Error> {
             }
         });
 
-        /* TO DO BELOW : 
+        /* TODO BELOW :
         -check if exist(creator and group)
         -change creator access
         */
@@ -186,11 +187,10 @@ async fn main() -> Result<(), std::io::Error> {
             let state = request.state();
             let mut guard = state.lock().unwrap();
 
-            let name2 = groupName.clone();
             let creator1 = creator.clone();
             let creator2 = creator.clone();
 
-            guard.groups.insert(name2, Group { name:groupName, creator: creator, members: vec![creator1], admins: vec![creator2], closed: false });
+            guard.groups.insert(groupName.clone(), Group { name:groupName, creator, members: vec![creator1], admins: vec![creator2], closed: false });
 
             Ok(tide::StatusCode::Ok)
         });
