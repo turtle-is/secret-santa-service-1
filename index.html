@@ -6,6 +6,57 @@
 <body>
  <h1>Secret Santa</h1>
  <p>Welcome to our Secret Santa gift exchange!</p>
+ <style>
+  .secret-santa {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+  }
+
+  .secret-santa img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  }
+
+  .secret-santa::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: #fff;
+    animation: twinkle 1s ease-in-out infinite;
+    opacity: 0;
+    transition: all 0.5s ease-in-out;
+  }
+
+  .secret-santa:hover::before {
+    opacity: 1;
+  }
+
+  @keyframes twinkle {
+    0% {
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+</style>
+
+<div class="secret-santa">
+  <img src="santa.png" alt="Secret Santa">
+</div>
+
 
  <h2>Rules</h2>
  <ul>
