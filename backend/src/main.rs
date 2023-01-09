@@ -16,6 +16,12 @@ enum Access {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+struct AddGroup {
+    groupName: String,
+    creator: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Group {
     name: String,
     creator: String,
@@ -32,11 +38,6 @@ struct User {
     recipient: String,
 }
 
-#[derive(serde::Deserialize)]
-struct AddGroup {
-    name: String,
-    creator: String,
-}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct DataBase {
@@ -156,6 +157,28 @@ async fn main() -> Result<(), std::io::Error> {
                 )),
                 Some(gr) => Ok(serde_json::json!({"creator": gr.creator, "member": gr.members, "admins": gr.admins})),
             }
+        });
+
+        /* TO DO BELOW : 
+        -check if exist(creator and group)
+        -change creator access
+        */
+        app.at("/add-group")
+        .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+            let AddGroup { groupName, creator } = request.body_json().await?; // <--------------------- bruh
+
+            eprintln!("Adding group {groupName}");
+
+            let state = request.state();
+            let mut guard = state.lock().unwrap();
+
+            let name2 = groupName.clone();
+            let creator1 = creator.clone();
+            let creator2 = creator.clone();
+
+            guard.groups.insert(name2, Group { name:groupName, creator: creator, members: vec![creator1], admins: vec![creator2], closed: false });
+
+            Ok(tide::StatusCode::Ok)
         });
 
     app.listen("127.0.0.1:8080").await
