@@ -35,6 +35,7 @@ struct UserJoin {
 
 //Data structures
 
+#[derive(Clone)]
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Group {
     name: String,
@@ -279,8 +280,15 @@ async fn main() -> Result<(), std::io::Error> {
             }
 
             match guard.groups.get(&group_name) {
-                Some(_group) =>
-                    group_exist = true,
+                Some(group) => {
+                    group_exist = true;
+                    if group.closed == true {
+                        return Err(tide::Error::from_str(
+                            tide::StatusCode::Forbidden,
+                            format!("Group {group_name} closed."),
+                        ))
+                    }
+                },
                 None => return Err(tide::Error::from_str(
                     tide::StatusCode::NotFound,
                     format!("Group {group_name} not found."),
@@ -293,6 +301,53 @@ async fn main() -> Result<(), std::io::Error> {
 
             let usr = guard.users.remove(&user_name).unwrap();
             guard.users.insert(user_cpy2, User { name: usr.name, access: Access::User, group: group_cpy3, recipient: "".to_string() });
+
+            Ok(tide::StatusCode::Ok)
+        });
+
+    app.at("/start")
+        .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+            let group_name: String = request.body_json().await?;
+
+            eprintln!("Starting santa in group {group_name}...");
+
+            let state = request.state();
+            let mut guard = state.lock().unwrap();
+
+            match guard.groups.get(&group_name) {
+                Some(group) => {
+                    if group.closed == true {
+                        return Err(tide::Error::from_str(
+                            tide::StatusCode::Forbidden,
+                            format!("Santa in {group_name} already started."),
+                        ))
+                    }
+                },
+                None => return Err(tide::Error::from_str(
+                    tide::StatusCode::NotFound,
+                    format!("Group {group_name} not found."),
+                )),
+            }
+
+            let mut gr = guard.groups.remove(&group_name).unwrap();
+            gr.closed = true;
+            guard.groups.insert(group_name.clone(), gr.clone());
+
+            let mut members = gr.members;
+
+            for i in 0..members.len()-1 {
+                let name = members[i].clone();
+                let mut usr = guard.users.remove(&name).unwrap();
+                usr.recipient = members[i+1].clone();
+                guard.users.insert(name, usr);
+            }
+
+            let name = members.last().clone().unwrap();
+            let mut usr = guard.users.remove(name).unwrap();
+            usr.recipient = members[0].clone();
+            guard.users.insert(name.to_string(), usr);
+
+            eprintln!("Santa in group {group_name} started.");
 
             Ok(tide::StatusCode::Ok)
         });
