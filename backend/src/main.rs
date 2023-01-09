@@ -141,5 +141,22 @@ async fn main() -> Result<(), std::io::Error> {
             Ok(tide::StatusCode::Ok)
         });*/
 
+        app.at("/get-group-info")
+        .get(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+            let group: String = request.body_json().await?;
+
+            let state = request.state();
+            let guard = state.lock().unwrap();
+
+            eprintln!("Searching for group {group}");
+            match guard.groups.get(&group){
+                None => Err(tide::Error::from_str(
+                    tide::StatusCode::NotFound,
+                    format!("Group {group} not found"),
+                )),
+                Some(gr) => Ok(serde_json::json!({"creator": gr.creator, "member": gr.members, "admins": gr.admins})),
+            }
+        });
+
     app.listen("127.0.0.1:8080").await
 }
