@@ -102,6 +102,7 @@ async fn main() -> Result<(), std::io::Error> {
     let state = Arc::new(Mutex::new(database));
 
     let mut app = tide::with_state(state);
+
     app.at("/version").get(move |_| async move { Ok(serde_json::json!({ "version": version })) });
 
     app.at("/add-user")
@@ -152,25 +153,6 @@ async fn main() -> Result<(), std::io::Error> {
                 Some(user) => Ok(serde_json::json!({"access": user.access, "group": user.group, "recipient": user.recipient})),
             }
         });
-
-    //------------TODO  Rework BELOW
-    /*  app.at("/set-admin")
-     .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
-         let name: String = request.body_json().await?;
-
-         let state = request.state();
-         let guard = state.lock().unwrap();
-
-         eprintln!("Searching for user {name}");
-         match guard.users.get(&name){
-             None => Err(tide::Error::from_str(
-                 tide::StatusCode::NotFound,
-                 format!("User {name} not found"),
-             )),
-             Some(&user) => user.access = Access::Admin,//???
-         }
-         Ok(tide::StatusCode::Ok)
-     });*/
 
     app.at("/get-group")
         .get(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
@@ -239,7 +221,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     app.at("/user-join")
         .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
-            let UserJoin { group_name,admin_name, user_name } = request.body_json().await?; // <--------------------- bruh
+            let UserJoin { group_name, admin_name, user_name } = request.body_json().await?; // <--------------------- bruh
 
             eprintln!("{admin_name} trying to add user {user_name} into group {group_name}");
 
@@ -258,12 +240,12 @@ async fn main() -> Result<(), std::io::Error> {
             match guard.users.get(&admin_name) {
                 Some(admin) => {
                     admin_exist = true;
-                    if (admin.group.to_string() != group_name) | (admin.access != Access::Admin){
+                    if (admin.group.to_string() != group_name) | (admin.access != Access::Admin) {
                         return Err(tide::Error::from_str(
                             tide::StatusCode::NotFound,
-                            format!("User {admin_name} is not admin of this group.")))
+                            format!("User {admin_name} is not admin of this group.")));
                     }
-                },
+                }
                 None => return Err(tide::Error::from_str(
                     tide::StatusCode::NotFound,
                     format!("User {admin_name} not found."),
@@ -286,9 +268,9 @@ async fn main() -> Result<(), std::io::Error> {
                         return Err(tide::Error::from_str(
                             tide::StatusCode::Forbidden,
                             format!("Group {group_name} closed."),
-                        ))
+                        ));
                     }
-                },
+                }
                 None => return Err(tide::Error::from_str(
                     tide::StatusCode::NotFound,
                     format!("Group {group_name} not found."),
@@ -320,9 +302,9 @@ async fn main() -> Result<(), std::io::Error> {
                         return Err(tide::Error::from_str(
                             tide::StatusCode::Forbidden,
                             format!("Santa in {group_name} already started."),
-                        ))
+                        ));
                     }
-                },
+                }
                 None => return Err(tide::Error::from_str(
                     tide::StatusCode::NotFound,
                     format!("Group {group_name} not found."),
@@ -335,10 +317,10 @@ async fn main() -> Result<(), std::io::Error> {
 
             let mut members = gr.members;
 
-            for i in 0..members.len()-1 {
+            for i in 0..members.len() - 1 {
                 let name = members[i].clone();
                 let mut usr = guard.users.remove(&name).unwrap();
-                usr.recipient = members[i+1].clone();
+                usr.recipient = members[i + 1].clone();
                 guard.users.insert(name, usr);
             }
 
@@ -351,6 +333,26 @@ async fn main() -> Result<(), std::io::Error> {
 
             Ok(tide::StatusCode::Ok)
         });
+
+    //------------TODO  Rework BELOW
+    /*  app.at("/set-admin")
+     .put(|mut request: Request<Arc<Mutex<DataBase>>>| async move {
+         let name: String = request.body_json().await?;
+
+         let state = request.state();
+         let guard = state.lock().unwrap();
+
+         eprintln!("Searching for user {name}");
+         match guard.users.get(&name){
+             None => Err(tide::Error::from_str(
+                 tide::StatusCode::NotFound,
+                 format!("User {name} not found"),
+             )),
+             Some(&user) => user.access = Access::Admin,//???
+         }
+         Ok(tide::StatusCode::Ok)
+     });*/
+
 
     app.listen("127.0.0.1:8080").await
 }
